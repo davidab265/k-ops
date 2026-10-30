@@ -1,0 +1,15 @@
+name: llmhunt
+on:
+  workflow_dispatch:
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install requests -q
+      - run: python3 llmhunt.py llm_hosts.txt out_llm.json | tail -60 || true
+      - run: python3 llmhunt.py oll_hosts.txt out_oll.json | tail -30 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: llm, path: 'out_*.json'}
