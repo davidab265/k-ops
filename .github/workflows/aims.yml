@@ -1,0 +1,14 @@
+name: aims
+on:
+  workflow_dispatch:
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install requests -q
+      - run: python3 probe_models.py ai_sub_hosts.txt aims_out.json | tail -80 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: aims, path: aims_out.json}
