@@ -1,0 +1,14 @@
+name: strict
+on:
+  workflow_dispatch:
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install requests -q
+      - run: python3 strict_llm.py all_llm_hosts.txt strict_out.json | tail -100 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: strict, path: strict_out.json}
