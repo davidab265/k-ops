@@ -1,0 +1,23 @@
+name: hunt
+on:
+  workflow_dispatch:
+jobs:
+  hunt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install requests -q
+      - name: es
+        run: python3 hunt.py es_hosts.txt 400 | tail -40
+        continue-on-error: true
+      - name: k8s
+        run: python3 hunt.py k8s_hosts.txt 400 | tail -40
+        continue-on-error: true
+      - name: docker
+        run: python3 hunt.py dk_hosts.txt 400 | tail -40
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hunt
+          path: /tmp/hunt_out.json
