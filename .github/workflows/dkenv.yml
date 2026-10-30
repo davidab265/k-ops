@@ -1,0 +1,14 @@
+name: dkenv
+on:
+  workflow_dispatch:
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install requests -q
+      - run: python3 docker_env.py docker_hosts.txt dk_env.json | tail -80 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: dkenv, path: dk_env.json}
