@@ -1,0 +1,14 @@
+name: llmhunt2
+on:
+  workflow_dispatch:
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install requests -q
+      - run: python3 llmhunt.py llm_hosts2.txt out_llm2.json | tail -80 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: llm2, path: out_llm2.json}
