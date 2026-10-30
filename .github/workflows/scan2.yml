@@ -1,0 +1,17 @@
+name: scan2
+on:
+  workflow_dispatch:
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq masscan
+      - run: |
+          sudo masscan -iL cidrs.txt -p4000,8000,3000,5000,11434,8501,9000,8888 --rate 60000 --wait 5 -oL out2.txt || true
+          grep -i open out2.txt | awk '{print $4":"$3}' | sort -u > hits2.txt
+          echo "HITS: $(wc -l < hits2.txt)"
+          head -30 hits2.txt
+      - uses: actions/upload-artifact@v4
+        with: {name: hits2, path: hits2.txt}
