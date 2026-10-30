@@ -73,5 +73,6 @@ def main():
             if x.get("keys"): keys+=x["keys"]
             print(json.dumps(x)[:300], flush=True)
     print(f"TOTAL findings={len(results)} keys={len(set(keys))}")
-    json.dump({"findings":results,"keys":sorted(set(keys))}, open("/tmp/hunt_out.json","w"), indent=1)
+    out=sys.argv[3] if len(sys.argv)>3 else "hunt_out.json"
+    json.dump({"findings":results,"keys":sorted(set(keys))}, open(out,"w"), indent=1)
 if __name__=="__main__": main()
