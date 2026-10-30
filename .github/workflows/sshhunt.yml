@@ -1,0 +1,16 @@
+name: sshhunt
+on:
+  workflow_dispatch:
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          tar xf bundle.tar
+          chmod -R 600 keys || true
+          python3 ssh_try.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: sshhits, path: ssh_hits.json}
