@@ -1,0 +1,23 @@
+name: pve2
+on: workflow_dispatch
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    timeout-minutes: 200
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2]
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q requests
+      - run: |
+          awk -v s=${{ matrix.shard }} 'NR % 3 == s' proxmox_hosts.txt > pv.txt
+          wc -l pv.txt
+          python3 pve_brute2.py pv.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pve2-${{ matrix.shard }}
+          path: /tmp/pve_hits2.json
+          if-no-files-found: warn
