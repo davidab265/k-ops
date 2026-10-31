@@ -1,0 +1,11 @@
+name: pvedeep
+on: workflow_dispatch
+jobs:
+  v:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "$KOPS_KEY" > /tmp/kops_key && chmod 600 /tmp/kops_key
+        env: {KOPS_KEY: "${{ secrets.KOPS_KEY }}"}
+      - run: bash pve_deep.sh
