@@ -1,0 +1,17 @@
+name: wmcreds
+on: workflow_dispatch
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q requests
+      - name: webmin weak creds
+        run: python3 webmin_creds.py miniserv_hosts.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wmcreds-results
+          path: /tmp/webmin_creds_result.json
+          if-no-files-found: warn
