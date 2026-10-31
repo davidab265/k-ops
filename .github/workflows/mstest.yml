@@ -1,0 +1,19 @@
+name: mstest
+on: workflow_dispatch
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq masscan
+          ip route | head -3
+          echo "--- try 1: 1.0.0.0/8 ---"
+          sudo masscan 1.0.0.0/8 -p10000 --rate 5000 --shard 1/8 -oL t1.txt 2>&1 | tail -5
+          echo "exit=$?"; wc -l t1.txt 2>/dev/null
+          echo "--- try 2: with adapter ---"
+          sudo masscan 1.0.0.0/8 -p10000 --rate 5000 --adapter eth0 -oL t2.txt 2>&1 | tail -5
+          echo "exit=$?"; wc -l t2.txt 2>/dev/null
+          echo "--- try 3: small range ---"
+          sudo masscan 1.1.1.0/24 -p10000 --rate 1000 -oL t3.txt 2>&1 | tail -5
+          echo "exit=$?"; cat t3.txt 2>/dev/null | head -3
