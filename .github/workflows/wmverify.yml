@@ -1,0 +1,17 @@
+name: wmverify
+on: workflow_dispatch
+jobs:
+  v:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q requests
+      - name: verify webmin logins
+        run: python3 webmin_creds.py verify_list.txt --verify || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wmverify-results
+          path: /tmp/webmin_creds_result.json
+          if-no-files-found: warn
