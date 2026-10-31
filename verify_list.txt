@@ -1,5 +1,5 @@
-157.180.50.91|root|password
-158.69.48.57|root|root
-163.172.122.200|root|root
-51.68.188.86|root|root
-65.21.218.158|root|root
+157.180.50.91:10000|root|password
+158.69.48.57:10000|root|root
+163.172.122.200:10000|root|root
+51.68.188.86:10000|root|root
+65.21.218.158:10000|root|root
