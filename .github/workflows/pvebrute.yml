@@ -1,0 +1,24 @@
+name: pvebrute
+on: workflow_dispatch
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0,1,2,3,4]
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q requests
+      - name: shard ${{ matrix.shard }}
+        run: |
+          awk -v s=${{ matrix.shard }} 'NR%5==s' proxmox_hosts.txt > pve_${{ matrix.shard }}.txt
+          wc -l pve_${{ matrix.shard }}.txt
+          python3 pve_brute.py pve_${{ matrix.shard }}.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pvebrute-${{ matrix.shard }}
+          path: /tmp/pve_result.json
+          if-no-files-found: warn
