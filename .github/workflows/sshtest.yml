@@ -1,0 +1,16 @@
+name: sshtest
+on: workflow_dispatch
+jobs:
+  v:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - run: echo "$KOPS_KEY" > /tmp/k && chmod 600 /tmp/k
+        env: {KOPS_KEY: "${{ secrets.KOPS_KEY }}"}
+      - name: test
+        run: |
+          for h in 134.209.192.147 65.21.218.158 51.68.188.86 146.190.200.5; do
+            echo "########## $h ##########"
+            ssh -i /tmp/k -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=12 -o BatchMode=yes root@$h 'id; hostname; uname -r' 2>&1 | head -6
+            echo "exit=$?"
+          done
