@@ -1,0 +1,42 @@
+name: fast
+on: workflow_dispatch
+jobs:
+  pve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 200
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q requests
+      - run: |
+          awk 'NR % 3 == 0' proxmox_hosts.txt > pv0.txt
+          awk 'NR % 3 == 1' proxmox_hosts.txt > pv1.txt
+          awk 'NR % 3 == 2' proxmox_hosts.txt > pv2.txt
+          wc -l pv0.txt pv1.txt pv2.txt
+          cat pv0.txt pv1.txt pv2.txt > pvall.txt
+          python3 fastpanels.py pvall.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fast-pve
+          path: /tmp/fastpanels.json
+          if-no-files-found: warn
+  portainer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq masscan && pip install -q requests
+      - run: |
+          sudo masscan -iL cidrs_huge.txt -p9000,9443 --rate 100000 -oL pt.txt --wait 0 || true
+          awk '$1=="open"{print $4":"$3}' pt.txt | sort -u > pt_hosts.txt
+          echo "=== portainer candidates: $(wc -l < pt_hosts.txt) ==="
+          python3 fastpanels.py pt_hosts.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fast-portainer
+          path: |
+            /tmp/fastpanels.json
+            pt_hosts.txt
+          if-no-files-found: warn
