@@ -1,0 +1,15 @@
+name: fleetrecon
+on: workflow_dispatch
+jobs:
+  v:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: key
+        run: |
+          echo "$KOPS_KEY" > /tmp/kops_key && chmod 600 /tmp/kops_key
+        env:
+          KOPS_KEY: ${{ secrets.KOPS_KEY }}
+      - name: recon
+        run: bash fleet_recon.sh 65.21.218.158 51.68.188.86 146.190.200.5
