@@ -1,0 +1,20 @@
+name: keysanity
+on: workflow_dispatch
+jobs:
+  v:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: |
+          echo "$KOPS_KEY" > /tmp/k && chmod 600 /tmp/k
+          ssh-keygen -t ed25519 -f /tmp/wrong -N "" -q
+        env: {KOPS_KEY: "${{ secrets.KOPS_KEY }}"}
+      - name: proof = key present AND wrong key fails
+        run: |
+          for ip in 65.21.218.158 51.68.188.86 146.190.200.5 134.209.192.147 172.233.228.48; do
+            echo "########## $ip ##########"
+            K=$(ssh -i /tmp/k -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 -o BatchMode=yes root@$ip 'grep -c kops@base /root/.ssh/authorized_keys 2>/dev/null' 2>&1 | head -1)
+            echo "key_count=$K"
+            W=$(ssh -i /tmp/wrong -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 -o BatchMode=yes root@$ip 'id -u' 2>&1 | head -1)
+            echo "wrong_key_result=$W"
+          done
