@@ -1,0 +1,22 @@
+name: wmssh
+on: workflow_dispatch
+jobs:
+  v:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q requests
+      - name: install key via cron.d
+        run: python3 wm_ssh.py wmfile.txt || true
+      - name: wait for cron
+        run: sleep 100
+      - name: ssh test
+        run: |
+          mkdir -p ~/.ssh && echo "$KOPS_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          for h in 157.180.50.91 163.172.122.200 65.21.218.158 51.68.188.86; do
+            echo "=== $h ==="
+            ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=12 -o BatchMode=yes root@$h 'id; hostname; uname -sr' 2>&1 | head -4
+          done
+        env:
+          KOPS_KEY: ${{ secrets.KOPS_KEY }}
