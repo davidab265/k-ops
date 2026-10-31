@@ -1,0 +1,10 @@
+name: wmform
+on: workflow_dispatch
+jobs:
+  v:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q requests
+      - run: python3 wm_form.py verify_list.txt
