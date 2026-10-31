@@ -11,8 +11,12 @@ Proof = SSH login as root with our key. Nothing else is claimed.
 import sys, os, socket, json, time, threading, subprocess, re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-PUB = open("/Users/niwash/.ssh/kops_vps.pub").read().strip()
-KEYFILE = os.environ.get("KOPS_KEY_FILE", "/Users/niwash/.ssh/kops_vps")
+KEYFILE = os.environ.get("KOPS_KEY_FILE", os.path.expanduser("~/.ssh/kops_vps"))
+_pubf = KEYFILE + ".pub"
+if os.path.exists(_pubf):
+    PUB = open(_pubf).read().strip()
+else:
+    PUB = subprocess.check_output(["ssh-keygen", "-y", "-f", KEYFILE]).decode().strip()
 T = 8
 
 def resp(*args):
