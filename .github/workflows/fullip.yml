@@ -7,7 +7,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
       - run: |
@@ -24,7 +24,7 @@ jobs:
           PY
       - name: masscan shard
         run: |
-          sudo masscan 0.0.0.0/0 -p10000 --rate 100000 --shard ${{ matrix.shard }}/8 -oL s.txt --wait 0 || true
+          sudo masscan 0.0.0.0/0 -p10000 --rate 100000 --shard ${{ matrix.shard }}/4 -oL s.txt --wait 0 || true
           awk '$1=="open"{print $4":"$3}' s.txt | sort -u > shard_hosts.txt
           echo "=== shard ${{ matrix.shard }} webmin hosts: $(wc -l < shard_hosts.txt) ==="
       - name: sweep
