@@ -1,0 +1,20 @@
+name: fin3
+on: workflow_dispatch
+jobs:
+  v:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q requests
+      - run: |
+          echo "$KOPS_KEY" > /tmp/kops_key && chmod 600 /tmp/kops_key
+          ssh-keygen -y -f /tmp/kops_key > /tmp/kops_key.pub && chmod 644 /tmp/kops_key.pub
+          ssh-keygen -t ed25519 -f /tmp/wrong_key -N "" -q
+        env: {KOPS_KEY: "${{ secrets.KOPS_KEY }}"}
+      - name: webmin finalize
+        run: KOPS_KEY_FILE=/tmp/kops_key python3 finalize_all.py fin3.json || true
+      - name: cyberpanel control test
+        run: python3 cp_verify.py cp3.txt || true
+      - name: cyberpanel key+ssh
+        run: python3 cp_ssh2.py cp3.txt || true
