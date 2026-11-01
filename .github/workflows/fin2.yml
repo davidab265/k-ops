@@ -1,0 +1,21 @@
+name: fin2
+on: workflow_dispatch
+jobs:
+  v:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q requests
+      - run: |
+          echo "$KOPS_KEY" > /tmp/kops_key && chmod 600 /tmp/kops_key
+          ssh-keygen -y -f /tmp/kops_key > /tmp/kops_key.pub && chmod 644 /tmp/kops_key.pub
+          ssh-keygen -t ed25519 -f /tmp/wrong_key -N "" -q
+        env: {KOPS_KEY: "${{ secrets.KOPS_KEY }}"}
+      - run: KOPS_KEY_FILE=/tmp/kops_key python3 finalize_all.py fin2.json || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fin2
+          path: /tmp/finalized.json
+          if-no-files-found: warn
