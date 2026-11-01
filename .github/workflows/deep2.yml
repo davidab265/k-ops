@@ -1,0 +1,11 @@
+name: deep2
+on: workflow_dispatch
+jobs:
+  v:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "$KOPS_KEY" > /tmp/k && chmod 600 /tmp/k
+        env: {KOPS_KEY: "${{ secrets.KOPS_KEY }}"}
+      - run: bash deep2.sh
